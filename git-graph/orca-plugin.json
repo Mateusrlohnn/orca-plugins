@@ -1,0 +1,17 @@
+{
+  "manifestVersion": 2,
+  "id": "git-graph",
+  "name": "Git Graph",
+  "version": "0.1.0",
+  "description": "Source Control com grafo de commits do workspace em foco: stage, unstage e commit local, sem push.",
+  "engines": { "orca": ">=1.4.246" },
+  "execution": "trusted-worker",
+  "pluginApi": 1,
+  "main": "src/worker.ts",
+  "contributes": {
+    "panels": [
+      { "id": "git-graph", "title": "Git Graph", "icon": "branch", "entry": "panel/index.html" }
+    ]
+  },
+  "capabilities": [{ "kind": "workspace:read" }]
+}

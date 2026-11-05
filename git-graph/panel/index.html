@@ -1,0 +1,197 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8" />
+    <style>
+      :root { --row: 36px; --add: hsl(142 55% 42%); }
+      * { box-sizing: border-box; }
+      html, body { height: 100%; }
+      body {
+        margin: 0;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+        font: 12px system-ui, sans-serif;
+        color: var(--orca-foreground);
+        background: var(--orca-background);
+      }
+      button { font: inherit; color: inherit; background: none; border: 0; padding: 0; cursor: pointer; }
+      button:focus-visible { outline: 2px solid var(--orca-ring); outline-offset: -2px; }
+      .muted { color: var(--orca-muted-foreground); }
+      .trunc { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+
+      header {
+        display: flex; align-items: center; gap: 6px; padding: 8px 10px;
+        border-bottom: 1px solid var(--orca-border); flex: none;
+      }
+      header .branch { flex: 1; font-weight: 600; }
+      .tool {
+        padding: 3px 7px; border: 1px solid var(--orca-border); border-radius: var(--orca-radius);
+        white-space: nowrap;
+      }
+      .tool:hover { background: var(--orca-accent); color: var(--orca-accent-foreground); }
+      .tool[aria-pressed="true"] { background: var(--orca-secondary); color: var(--orca-secondary-foreground); }
+
+      .section-title {
+        display: flex; width: 100%; justify-content: space-between; padding: 6px 10px;
+        font-weight: 600; flex: none; text-align: left;
+        border-bottom: 1px solid var(--orca-border);
+      }
+      .section-title:hover { background: var(--orca-accent); }
+      .chevron { display: inline-block; width: 12px; }
+      [aria-expanded="false"] .chevron { transform: rotate(-90deg); }
+      #changes-body {
+        flex: none; display: flex; flex-direction: column; min-height: 0; overflow: hidden;
+        height: var(--changes-h, auto); max-height: var(--changes-max, 48vh);
+      }
+      body.graph-closed #changes-body { flex: 1 1 0; height: auto; max-height: none; }
+      .sash {
+        flex: none; height: 5px; margin: -2px 0; position: relative; z-index: 2;
+        cursor: row-resize; touch-action: none; transition: background .1s;
+      }
+      .sash:hover, .sash:focus-visible, .sash.dragging { background: var(--orca-ring); outline: none; }
+      .sash[hidden] { display: none; }
+      body.resizing { cursor: row-resize; user-select: none; }
+      @media (prefers-reduced-motion: reduce) { .sash { transition: none; } }
+      #changes-body[hidden], #graph[hidden] { display: none; }
+      #changes { flex: 1 1 auto; min-height: 0; overflow-y: auto; }
+      .composer { flex: none; display: flex; flex-direction: column; gap: 6px; padding: 8px 10px; }
+      #message {
+        width: 100%; min-height: 28px; max-height: 96px; padding: 5px 7px; resize: vertical;
+        font: inherit; color: var(--orca-foreground); background: var(--orca-card);
+        border: 1px solid var(--orca-input); border-radius: var(--orca-radius);
+      }
+      #message:focus-visible { outline: 2px solid var(--orca-ring); outline-offset: -1px; }
+      #message:disabled { opacity: .6; }
+      .commit-btn {
+        padding: 5px 8px; font-weight: 600; border-radius: var(--orca-radius);
+        background: var(--orca-primary); color: var(--orca-primary-foreground);
+      }
+      .commit-btn:disabled { opacity: .45; cursor: not-allowed; }
+      #commit-feedback:empty { display: none; }
+      #commit-feedback { overflow-wrap: anywhere; white-space: pre-wrap; max-height: 96px; overflow-y: auto; }
+      #commit-feedback.error { color: var(--orca-destructive); }
+      #commit-feedback.block { color: var(--orca-muted-foreground); }
+      .group-title {
+        display: flex; align-items: center; justify-content: space-between; padding: 4px 6px 4px 10px;
+        font-size: 11px; font-weight: 600; color: var(--orca-muted-foreground);
+      }
+      .graph-title { align-items: center; gap: 6px; border-top: 1px solid var(--orca-border); }
+      .graph-title:hover { background: none; }
+      .graph-title > button:first-child { font-weight: 600; }
+      .graph-title .grow { flex: 1; }
+      .file-row { display: flex; align-items: center; }
+      .file-row .file { flex: 1; min-width: 0; }
+      .file-action {
+        flex: none; width: 22px; height: 22px; margin-right: 4px; font-weight: 600; border-radius: 3px;
+      }
+      .file-action:hover { background: var(--orca-accent); color: var(--orca-accent-foreground); }
+
+      .file {
+        display: flex; align-items: center; gap: 6px; width: 100%; padding: 3px 10px; text-align: left;
+      }
+      .file:hover { background: var(--orca-accent); color: var(--orca-accent-foreground); }
+      .file[aria-current="true"] { background: var(--orca-accent); color: var(--orca-accent-foreground); }
+      .file .name { flex: none; max-width: 70%; }
+      .file .dir { flex: 1; font-size: 11px; }
+      .st {
+        flex: none; width: 16px; text-align: center; font: 600 11px ui-monospace, monospace;
+      }
+      .st-A { color: var(--add); }
+      .st-D { color: var(--orca-destructive); }
+      .st-M, .st-R, .st-C { color: hsl(35 85% 50%); }
+
+      #graph { flex: 1 1 0; min-height: 60px; overflow-y: auto; overflow-x: hidden; }
+      .commit {
+        display: flex; align-items: stretch; width: 100%; height: var(--row); text-align: left;
+      }
+      .commit:hover { background: var(--orca-accent); color: var(--orca-accent-foreground); }
+      .commit[aria-current="true"] { background: var(--orca-accent); color: var(--orca-accent-foreground); }
+      .commit svg { flex: none; display: block; }
+      .commit .text {
+        flex: 1; min-width: 0; padding: 3px 8px 3px 4px; display: flex; flex-direction: column;
+        justify-content: center; gap: 1px;
+      }
+      .commit .line { display: flex; align-items: center; gap: 4px; min-width: 0; }
+      .commit .meta { font-size: 11px; }
+      .ref {
+        flex: 0 1 auto; min-width: 24px; max-width: 30%; padding: 0 4px; border-radius: 3px; font-size: 10px;
+        line-height: 14px; border: 1px solid var(--orca-border);
+      }
+      .commit .subject { flex: 1 1 45%; }
+      .ref-head { background: var(--orca-primary); color: var(--orca-primary-foreground); border-color: transparent; }
+      .ref-tag { border-style: dashed; }
+      .ref-remote { color: var(--orca-muted-foreground); }
+
+      #detail {
+        flex: var(--detail-flex, 1 1 0); height: var(--detail-h, auto); min-height: 80px;
+        display: flex; flex-direction: column; border-top: 2px solid var(--orca-border);
+      }
+      #detail[hidden] { display: none; }
+      .detail-head {
+        display: flex; align-items: center; gap: 6px; padding: 6px 10px; flex: none;
+        border-bottom: 1px solid var(--orca-border); font-weight: 600;
+      }
+      .detail-head .grow { flex: 1; }
+      #detail-body { flex: 1; min-height: 0; overflow: auto; }
+      .message { margin: 0; padding: 8px 10px; white-space: pre-wrap; overflow-wrap: anywhere; border-bottom: 1px solid var(--orca-border); }
+
+      .diff { font: 11px/16px ui-monospace, Consolas, monospace; width: max-content; min-width: 100%; }
+      .diff div { padding: 0 8px; white-space: pre; min-height: 16px; }
+      .d-add { background: color-mix(in srgb, var(--add) 18%, transparent); }
+      .d-del { background: color-mix(in srgb, var(--orca-destructive) 18%, transparent); }
+      .d-hunk { color: var(--orca-muted-foreground); background: var(--orca-muted); }
+      .d-meta { color: var(--orca-muted-foreground); }
+
+      .state { padding: 14px 10px; text-align: center; }
+      .state.error { color: var(--orca-destructive); overflow-wrap: anywhere; }
+      .state button { display: block; margin: 8px auto 0; }
+      .more { display: block; width: 100%; padding: 8px; text-align: center; }
+      .more:hover { background: var(--orca-accent); }
+      .notice { padding: 6px 10px; }
+      .skeleton {
+        height: 12px; margin: 10px; border-radius: 4px; background: var(--orca-muted);
+        animation: pulse 1.2s ease-in-out infinite;
+      }
+      @keyframes pulse { 50% { opacity: .5; } }
+      @media (prefers-reduced-motion: reduce) { .skeleton { animation: none; } }
+    </style>
+  </head>
+  <body>
+    <header>
+      <span class="branch">Source Control</span>
+      <span id="branch" class="trunc muted">…</span>
+    </header>
+    <button id="changes-title" class="section-title" type="button" aria-expanded="true">
+      <span><span class="chevron" aria-hidden="true">⌄</span> Changes</span><span id="changes-count" class="muted">–</span>
+    </button>
+    <section id="changes-body" aria-label="Alterações">
+      <div class="composer">
+        <textarea id="message" rows="2" aria-label="Mensagem do commit"></textarea>
+        <button id="commit" class="commit-btn" type="button" disabled>Commit</button>
+        <div id="commit-feedback" role="status"></div>
+      </div>
+      <div id="changes"></div>
+    </section>
+    <div id="sash-changes" class="sash" role="separator" aria-orientation="horizontal" aria-label="Redimensionar Changes e Graph" tabindex="0" title="Arraste para redimensionar. Duplo clique restaura."></div>
+    <div class="section-title graph-title">
+      <button id="graph-title" type="button" aria-expanded="true">
+        <span class="chevron" aria-hidden="true">⌄</span> Graph
+      </button>
+      <span class="grow"></span>
+      <button id="scope" class="tool" type="button" aria-pressed="true" title="Mostrar todas as branches ou só a atual">Todas</button>
+      <button id="refresh" class="tool" type="button" title="Atualizar">Atualizar</button>
+    </div>
+    <div id="graph" role="list" aria-label="Commits"></div>
+    <div id="sash-detail" class="sash" role="separator" aria-orientation="horizontal" aria-label="Redimensionar Graph e detalhe" tabindex="0" title="Arraste para redimensionar. Duplo clique restaura." hidden></div>
+    <section id="detail" aria-label="Detalhe" hidden>
+      <div class="detail-head">
+        <button id="back" class="tool" type="button" hidden>← Arquivos</button>
+        <span id="detail-title" class="grow trunc"></span>
+        <button id="close" class="tool" type="button" aria-label="Fechar detalhe">✕</button>
+      </div>
+      <div id="detail-body"></div>
+    </section>
+    <script type="module" src="./app.js"></script>
+  </body>
+</html>
